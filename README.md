@@ -1,8 +1,6 @@
-# Clockwork
-Place this app in **owncloud/apps/**
+ownCloud Clockwork
+=================
 
+Provides performance information of your ownCloud requests
 
-## Running tests
-After [Installing PHPUnit](http://phpunit.de/getting-started.html) run:
-
-    phpunit tests/
+![Clockwork](https://i.imgur.com/A5RwKio.png)
