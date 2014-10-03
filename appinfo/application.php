@@ -40,7 +40,9 @@ class Application extends App {
 		 * Core
 		 */
 		$container->registerService('Storage', function (IContainer $c) {
-			return new FileStorage('/srv/http/xdebug');
+			$config = \OC::$server->getConfig();
+			$dataDir = $config->getSystemValue("datadirectory", \OC::$SERVERROOT . '/data');
+			return new FileStorage($dataDir . '/clockwork');
 		});
 
 		$container->registerService('DataSource', function (IContainer $c) {
