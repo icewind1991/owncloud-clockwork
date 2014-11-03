@@ -13,6 +13,10 @@ namespace OCA\Clockwork\AppInfo;
 
 require_once __DIR__ . '/../3rdparty/autoload.php';
 
+if (\OC::$CLI) {
+	return;
+}
+
 $application = new Application();
 
 $pathInfo = \OC_Request::getPathInfo();
