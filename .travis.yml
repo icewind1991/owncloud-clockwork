@@ -25,7 +25,6 @@ before_install:
 
 script:
   # Run phpunit tests
-  - cd tests
   - phpunit --configuration phpunit.xml
 
   # Create coverage report
