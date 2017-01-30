@@ -1,5 +1,5 @@
 ownCloud Clockwork
-=================
+==================
 
 Provides performance information of your ownCloud requests
 
