@@ -19,7 +19,7 @@ if (\OC::$CLI) {
 
 $application = new Application();
 
-$pathInfo = \OC_Request::getPathInfo();
+$pathInfo = \OC::$server->getRequest()->getPathInfo();
 if (strstr($pathInfo, 'apps/clockwork/') === false) {
 	$application->sendHeaders();
 
