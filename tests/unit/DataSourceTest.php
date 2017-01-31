@@ -31,15 +31,15 @@ class DataSourceTest extends TestCase {
 
 	public function test() {
 		/** @var \PHPUnit_Framework_MockObject_MockObject | IQueryLogger $q */
-		$q = $this->createMock(IQueryLogger::class);
+		$q = $this->createMock('OCP\Diagnostics\IQueryLogger');
 		$q->expects($this->once())->method('getQueries')->willReturn([]);
 		/** @var \PHPUnit_Framework_MockObject_MockObject | IEventLogger $l */
-		$l = $this->createMock(IEventLogger::class);
+		$l = $this->createMock('OCP\Diagnostics\IEventLogger');
 		$l->expects($this->once())->method('getEvents')->willReturn([]);
 		$d = new DataSource($q, $l);
 
 		/** @var Request $r */
-		$r = $this->createMock(Request::class);
+		$r = $this->createMock('Clockwork\Request\Request');
 		$r0 = $d->resolve($r);
 		$this->assertEquals($r, $r0);
 	}

@@ -37,5 +37,5 @@ matrix:
     - php: 5.4
       env: DB=mysql CORE_BRANCH=stable9.1
     - php: 5.4
-      env: DB=mysql CORE_BRANCH=stable9.0
+      env: DB=mysql CORE_BRANCH=stable9
   fast_finish: true
