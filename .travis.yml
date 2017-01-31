@@ -24,6 +24,7 @@ before_install:
   - php occ app:enable $APP_NAME
 
 script:
+  - cd apps/$APP_NAME
   # Run phpunit tests
   - phpunit --configuration phpunit.xml
 
