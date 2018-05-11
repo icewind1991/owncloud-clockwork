@@ -1,147 +1,115 @@
-Clockwork
-=========
+<p align="center">
+	<img width="412px" src="https://underground.works/clockwork/images/github/title.png">
+	<img src="https://underground.works/clockwork/images/github/clockwork-intro.png">
+</p>
 
-**[Clockwork](http://github.com/itsgoingd/clockwork-chrome) is a Chrome extension for PHP development**, extending Developer Tools with a new panel providing all kinds of information useful for debugging and profiling your PHP applications, including information about request, headers, get and post data, cookies, session data, database queries, routes, visualisation of application runtime and more.
 
-**Not a Chrome user?** Check out [embeddable web app version of Clockwork](http://github.com/itsgoingd/clockwork-web), supporting many modern browsers along Chrome with out of the box support for Laravel and Slim.
+### What is Clockwork?
 
-**This repository contains server-side component of Clockwork** that gathers all the data, stores them in JSON format and serves them for displaying in Chrome Developer Tools extension.
+Clockwork is a browser extension, providing tools for debugging and profiling your PHP applications, including request data, application log, database queries, routes, visualisation of application runtime and more.
 
-## Installation
+Clockwork uses a server-side component, that gathers all the data and easily integrates with any PHP project, including out-of-the-box support for major frameworks.
 
-This extension provides out of the box support for Laravel 4, Slim 2 and CodeIgniter 2.1 frameworks, you can add support for any other or custom framework via an extensible API.
+Read more and try it out on the [Clockwork website](https://underground.works/clockwork).
 
-To install latest version simply add it to your `composer.json`:
+*This repository contains the server-side component of Clockwork.*
 
-```javascript
-"itsgoingd/clockwork": "1.*"
+### Installation
+
+*This readme contains installation and usage instructions for the Laravel framework, for other integrations check out the [Clockwork website](https://underground.works/clockwork).*
+
+Install the Clockwork library via Composer.
+
+```shell
+$ composer require itsgoingd/clockwork
 ```
 
-### Laravel 4
+If you are running the latest Laravel version, congratulations you are done!
 
-Once Clockwork is installed, you need to register Laravel service provider, in your `app/config/app.php`:
+For Laravel versions older than 5.5, you'll need to register the service provider, in your `config/app.php`:
 
 ```php
-'providers' => array(
+'providers' => [
 	...
-    'Clockwork\Support\Laravel\ClockworkServiceProvider'
-)
+	Clockwork\Support\Laravel\ClockworkServiceProvider::class
+]
 ```
 
-By default, Clockwork will only be available in debug mode, you can change this and other settings in the configuration file. Use the following Artisan command to publish the configuration file into your config directory:
+By default, Clockwork will only be available in debug mode, you can change this and other settings in the configuration file. Use the `vendor:publish` Artisan command to publish the configuration file into your config directory.
 
-```
-$ php artisan config:publish itsgoingd/clockwork --path vendor/itsgoingd/clockwork/Clockwork/Support/Laravel/config/
-```
+Clockwork comes with a `clock()` helper function, which provides an easy way to add records to the Clockwork log and events to the timeline.
 
-To add your controller's runtime to timeline, add following to your base controller's constructor:
+If you prefer to use a Facade, add following to your `config/app.php`:
 
 ```php
-$this->beforeFilter(function()
-{
-	Event::fire('clockwork.controller.start');
-});
-
-$this->afterFilter(function()
-{
-	Event::fire('clockwork.controller.end');
-});
-```
-
-Clockwork also comes with a facade, which provides an easy way to add records to the Clockwork log and events to the timeline. You can register the facade in your `app/config/app.php`:
-
-```php
-'aliases' => array(
+'aliases' => [
 	...
-	'Clockwork' => 'Clockwork\Support\Laravel\Facade',
-)
+	'Clockwork' => Clockwork\Support\Laravel\Facade::class,
+]
 ```
 
-Now you can use the following commands:
+**Note:** If you are using Laravel route cache, you will need to refresh it using the `route:cache` Artisan command.
+
+### Usage
+
+To interact with the data collected by Clockwork, you will need to
+
+- install the [Chrome extension](https://chrome.google.com/webstore/detail/clockwork/dmggabnehkmmfmdffgajcflpdjlnoemp)
+- or the [Firefox add-on](https://addons.mozilla.org/en-US/firefox/addon/clockwork-dev-tools/)
+- or use the web UI `http://your.app/__clockwork`
+
+Clockwork comes with a `clock()` helper function, which provides an easy way to add records to the Clockwork log or events to the timeline.
+
+You can also access Clockwork using the `Clockwork` facade, resolving from the container `app('clockwork')` or typehinting `Clockwork\Clockwork`.
+
+#### Logging
+
+All data logged using the Laravel log methods will also appear in the Clockwork log tab for the request.
+
+You can also use the Clockwork log directly, with the benefit of rich logging capabilities. You can safely log any variable, from a simple string to an object.
+
+Logging data to Clockwork can be done using the helper function, which even supports logging multiple values at once
 
 ```php
-Clockwork::startEvent('event_name', 'Event description.'); // event called 'Event description.' appears in Clockwork timeline tab
-
-Clockwork::info('Message text.'); // 'Message text.' appears in Clockwork log tab
-Log::info('Message text.'); // 'Message text.' appears in Clockwork log tab as well as application log file
-
-Clockwork::info(array('hello' => 'world')); // logs json representation of the array
-Clockwork::info(new Object()); // logs string representation of the objects if the object implements __toString magic method, logs json representation of output of toArray method if the object implements it, if neither is the case, logs json representation of the object cast to array
-
-Clockwork::endEvent('event_name');
+clock(User::first(), auth()->user(), $username)
 ```
 
-### Slim 2
-
-Once Clockwork is installed, you need to add Slim middleware to your app:
+If you want to specify a log level, you can use the long-form call
 
 ```php
-$app = new Slim(...);
-$app->add(new Clockwork\Support\Slim\ClockworkMiddleware('/requests/storage/path'));
+clock()->info("User {$username} logged in!")
 ```
 
-Clockwork is now available in Slim's DI container and can be used like this:
+#### Timeline
+
+Clockwork adds some general application runtime timeline events for you by default.
+
+To add a custom event to the timeline, you'll need to start an event with an unique name and description first.
 
 ```php
-$app = Slim::getInstance();
-
-$app->clockwork->startEvent('event_name', 'Event description.'); // event called 'Event description.' appears in Clockwork timeline tab
-
-$app->clockwork->info('Message text.'); // 'Message text.' appears in Clockwork log tab
-$app->log->info('Message text.'); // 'Message text.' appears in Clockwork log tab as well as application log file
-
-$app->clockwork->endEvent('event_name');
+clock()->startEvent('twitter-api-call', "Loading users latest tweets via Twitter API")
 ```
 
-### CodeIgniter 2.1
-
-Once Clockwork is installed, you need to copy the Clockwork controller from `vendor/itsgoingd/clockwork/Clockwork/Support/CodeIgniter/Clockwork.php` to your controllers directory and set up the following route:
+After executing the tracked block of code, you can end the event, using it's unique name.
 
 ```php
-$route['__clockwork/(.*)'] = 'clockwork/$1';
+clock()->endEvent('twitter-api-call')
 ```
 
-Finally, you need to set up the Clockwork hooks by adding following to your `application/config/hooks.php` file:
+Events that are not stopped explicitly will simply finish when the application runtime ends.
 
-```php
-Clockwork\Support\CodeIgniter\Register::registerHooks($hook);
-```
+#### Configuration
 
-To use Clockwork within your controllers/models/etc. you will need to extend your `CI_Controller` class. (If you haven't done so already) Create a new file at `application/core/MY_Controller.php`. 
+By default, Clockwork will only be available in debug mode, you can change this and more settings in the configuration file.
 
-```php
-class MY_Controller extends CI_Controller
-{
-    public function __construct()
-    {
-        parent::__construct();
-        $GLOBALS['EXT']->_call_hook('pre_controller_constructor');
-     } 
-}
-```
+You can publish the configuration file using the `vendor:publish` artisan command to
 
-Now you can use the following commands in your CodeIgniter app:
+- set when Clockwork should be enabled
+- enable or disable the web UI
+- configure how the request metadata is stored
+- set what data should be collected
 
-```php
-$this->clockwork->startEvent('event_name', 'Event description.'); // event called 'Event description.' appears in Clockwork timeline tab
-
-$this->clockwork->info('Message text.'); // 'Message text.' appears in Clockwork log tab
-
-$this->clockwork->endEvent('event_name');
-```
-
-### Other frameworks
-
-There is a [brief architecture overview](https://github.com/itsgoingd/clockwork/wiki/Development-notes) available, that should provide some help when implementing support for new frameworks or custom applications.
-
-If you would like to see or are working on a support for yet unsupported framework feel free to open a new issue on github.
-
-## Addons
-
-- [clockwork-cli](https://github.com/ptrofimov/clockwork-cli) - Command-line interface to Clockwork by [ptrofimov](https://github.com/ptrofimov)
-- [guzzle-clockwork](https://github.com/hannesvdvreken/guzzle-clockwork) - Plugin for logging Guzzle requests to Clockwork by [hannesvdvreken](https://github.com/hannesvdvreken)
-
-## Licence
+### Licence
 
 Copyright (c) 2013 Miroslav Rigler
 

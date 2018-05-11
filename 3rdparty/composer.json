@@ -3,6 +3,6 @@
 		"vendor-dir": "."
 	},
 	"require": {
-		"itsgoingd/clockwork": "1.*"
+		"itsgoingd/clockwork": "^2.0"
 	}
 }

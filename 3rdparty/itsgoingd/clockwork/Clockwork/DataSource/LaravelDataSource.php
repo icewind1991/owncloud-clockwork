@@ -1,15 +1,16 @@
-<?php
-namespace Clockwork\DataSource;
+<?php namespace Clockwork\DataSource;
 
 use Clockwork\DataSource\DataSource;
+use Clockwork\Helpers\Serializer;
 use Clockwork\Request\Log;
 use Clockwork\Request\Request;
 use Clockwork\Request\Timeline;
+
 use Illuminate\Foundation\Application;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Data source for Laravel 4 framework, provides application log, timeline, request and response information
+ * Data source for Laravel framework, provides application log, timeline, request and response information
  */
 class LaravelDataSource extends DataSource
 {
@@ -45,9 +46,9 @@ class LaravelDataSource extends DataSource
 	{
 		$this->app = $app;
 
-		$this->log = new Log();
+		$this->log      = new Log();
 		$this->timeline = new Timeline();
-		$this->views = new Timeline();
+		$this->views    = new Timeline();
 	}
 
 	/**
@@ -83,74 +84,60 @@ class LaravelDataSource extends DataSource
 	 */
 	public function listenToEvents()
 	{
-		$timeline = $this->timeline;
-
-		$timeline->startEvent('total', 'Total execution time.', 'start');
-
-		$timeline->startEvent('initialisation', 'Application initialisation.', 'start');
-
-		$this->app->booting(function() use($timeline)
-		{
-			$timeline->endEvent('initialisation');
-			$timeline->startEvent('boot', 'Framework booting.');
-			$timeline->startEvent('run', 'Framework running.');
+		$this->app['events']->listen('clockwork.controller.start', function () {
+			$this->timeline->startEvent('controller', 'Controller running.');
+		});
+		$this->app['events']->listen('clockwork.controller.end', function () {
+			$this->timeline->endEvent('controller');
 		});
 
-		$this->app->booted(function() use($timeline)
-		{
-			$timeline->endEvent('boot');
-		});
+		if (class_exists('Illuminate\Log\Events\MessageLogged')) {
+			// Laravel 5.4
+			$this->app['events']->listen('Illuminate\Log\Events\MessageLogged', function ($event) {
+				$this->log->log($event->level, $event->message, $event->context);
+			});
+		} else {
+			// Laravel 4.0 to 5.3
+			$this->app['events']->listen('illuminate.log', function ($level, $message, $context) {
+				$this->log->log($level, $message, $context);
+			});
+		}
 
-		$this->app->shutdown(function() use($timeline)
-		{
-			$timeline->endEvent('run');
-		});
+		$this->app['events']->listen('composing:*', function ($view, $data = null) {
+			if (is_string($view) && is_array($data)) { // Laravel 5.4 wildcard event
+				$view = $data[0];
+			}
 
-		$this->app->before(function() use($timeline)
-		{
-			$timeline->startEvent('dispatch', 'Router dispatch.');
-		});
-
-		$this->app->after(function() use($timeline)
-		{
-			$timeline->endEvent('dispatch');
-		});
-
-		$this->app['events']->listen('clockwork.controller.start', function() use($timeline)
-		{
-			$timeline->startEvent('controller', 'Controller running.');
-		});
-		$this->app['events']->listen('clockwork.controller.end', function() use($timeline)
-		{
-			$timeline->endEvent('controller');
-		});
-
-		$log = $this->log;
-
-		$this->app['events']->listen('illuminate.log', function($level, $message) use($log)
-		{
-			$log->log($level, $message);
-		});
-
-		$views = $this->views;
-		$that = $this;
-
-		$this->app['events']->listen('composing:*', function($view) use($views, $that)
-		{
 			$time = microtime(true);
 
-			$views->addEvent(
+			$this->views->addEvent(
 				'view ' . $view->getName(),
 				'Rendering a view',
 				$time,
 				$time,
-				array(
-					'name' => $view->getName(),
-					'data' => $that->replaceUnserializable($view->getData())
-				)
+				[ 'name' => $view->getName(), 'data' => Serializer::simplify($view->getData()) ]
 			);
 		});
 	}
+
+	/**
+	 * Hook up callbacks for some Laravel events, that we need to register as soon as possible
+	 */
+	public function listenToEarlyEvents()
+ 	{
+		$this->timeline->startEvent('total', 'Total execution time.', 'start');
+		$this->timeline->startEvent('initialisation', 'Application initialisation.', 'start');
+
+ 		$this->app->booting(function () {
+ 			$this->timeline->endEvent('initialisation');
+ 			$this->timeline->startEvent('boot', 'Framework booting.');
+ 			$this->timeline->startEvent('run', 'Framework running.');
+ 		});
+
+ 		$this->app->booted(function () {
+ 			$this->timeline->endEvent('boot');
+ 		});
+ 	}
 
 	/**
 	 * Return a textual representation of current route's controller
@@ -167,16 +154,17 @@ class LaravelDataSource extends DataSource
 			$controller = $route ? $route->getActionName() : null;
 		}
 
-		if ($controller instanceof Closure) {
+		if ($controller instanceof \Closure) {
 			$controller = 'anonymous function';
 		} elseif (is_object($controller)) {
 			$controller = 'instance of ' . get_class($controller);
-		} else if (is_array($controller) && count($controller) == 2) {
-			if (is_object($controller[0]))
+		} elseif (is_array($controller) && count($controller) == 2) {
+			if (is_object($controller[0])) {
 				$controller = get_class($controller[0]) . '->' . $controller[1];
-			else
+			} else {
 				$controller = $controller[0] . '::' . $controller[1];
-		} else if (!is_string($controller)) {
+			}
+		} elseif (! is_string($controller)) {
 			$controller = null;
 		}
 
@@ -221,37 +209,36 @@ class LaravelDataSource extends DataSource
 	protected function getRoutes()
 	{
 		$router = $this->app['router'];
-		$routesData = array();
 
 		if (strpos(Application::VERSION, '4.0') === 0) { // Laravel 4.0
 			$routes = $router->getRoutes()->all();
+			$names = array_keys($routes);
 
-			foreach ($routes as $name => $route) {
-				$routesData[] = array(
+			return array_map(function ($route, $name) {
+				return [
 					'method' => implode(', ', $route->getMethods()),
 					'uri'    => $route->getPath(),
 					'name'   => $name,
 					'action' => $route->getAction() ?: 'anonymous function',
 					'before' => implode(', ', $route->getBeforeFilters()),
-					'after'  => implode(', ', $route->getAfterFilters()),
-				);
-			}
+					'after'  => implode(', ', $route->getAfterFilters())
+				];
+			}, $routes, $names);
 		} else { // Laravel 4.1
-			$routes = $router->getRoutes();
+			$routes = $router->getRoutes()->getRoutes();
 
-			foreach ($routes as $route) {
-				$routesData[] = array(
+			return array_map(function ($route) {
+				return [
 					'method' => implode(', ', $route->methods()),
 					'uri'    => $route->uri(),
 					'name'   => $route->getName(),
 					'action' => $route->getActionName() ?: 'anonymous function',
-					'before' => implode(', ', array_keys($route->beforeFilters())),
-					'after'  => implode(', ', array_keys($route->afterFilters())),
-				);
-			}
+					'middleware' => is_callable([ $route, 'middleware' ]) ? $route->middleware() : [],
+					'before' => method_exists($route, 'beforeFilters') ? implode(', ', array_keys($route->beforeFilters())) : '',
+					'after'  => method_exists($route, 'afterFilters') ? implode(', ', array_keys($route->afterFilters())) : ''
+				];
+			}, $routes);
 		}
-
-		return $routesData;
 	}
 
 	/**
@@ -259,8 +246,6 @@ class LaravelDataSource extends DataSource
 	 */
 	protected function getSessionData()
 	{
-		return $this->removePasswords(
-			$this->replaceUnserializable($this->app['session']->all())
-		);
+		return $this->removePasswords(Serializer::simplify($this->app['session']->all()));
 	}
 }

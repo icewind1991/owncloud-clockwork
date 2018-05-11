@@ -39,6 +39,7 @@ class DataSource extends \Clockwork\DataSource\DataSource {
 	public function resolve(Request $request) {
 		$request->timelineData = $this->getTimeLine();
 		$request->databaseQueries = $this->getQueries();
+		return $request;
 	}
 
 	/**
