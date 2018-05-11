@@ -1,74 +1,42 @@
-<?php
-namespace Clockwork\Support\Laravel;
+<?php namespace Clockwork\Support\Laravel;
 
 use Illuminate\Console\Command;
+
 use Symfony\Component\Console\Input\InputOption;
 
 class ClockworkCleanCommand extends Command
 {
-    /**
-     * The console command name.
-     *
-     * @var string
-     */
-    protected $name = 'clockwork:clean';
+	// The console command name.
+	protected $name = 'clockwork:clean';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Cleans all request metadata';
+	// The console command description.
+	protected $description = 'Cleans Clockwork request metadata';
 
-    /**
-     * Create a new command instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        parent::__construct();
-    }
+	public function getOptions()
+	{
+		return [
+			[ 'all', 'a', InputOption::VALUE_NONE, 'cleans all data' ],
+			[ 'expiration', 'e', InputOption::VALUE_REQUIRED, 'cleans data older then specified value in seconds' ]
+		];
+	}
 
-    public function getOptions()
-    {
-        return array(
-            array('age', 'a', InputOption::VALUE_OPTIONAL, 'delete data about requests older then specified time in hours', null),
-        );
-    }
+	// Execute the console command.
+	public function handle()
+	{
+		if ($this->option('all')) {
+			$this->laravel['config']->set('clockwork.storage_expiration', 0);
+		} elseif ($expiration = $this->option('expiration')) {
+			$this->laravel['config']->set('clockwork.storage_expiration', $expiration);
+		}
 
-    /**
-     * Execute the console command.
-     *
-     * @return void
-     */
+		$this->laravel['clockwork.support']->getStorage()->cleanup($force = true);
+
+		$this->info('Metadata cleaned successfully.');
+	}
+
+	// Compatibility for old Laravel versions
     public function fire()
     {
-        $data_dir = storage_path() . '/clockwork';
-
-        $this->info('Cleaning ' . $data_dir . ' ...');
-
-        $files = glob($data_dir . '/*.json');
-
-        if (!$files || !count($files)) {
-            $this->info('Nothing to clean up.');
-            return;
-        }
-
-        $max_age = ($this->option('age')) ? time() - $this->option('age') * 60 * 60 : null;
-
-        $count = 0;
-        foreach ($files as $file) {
-            $tokens = explode('.', basename($file));
-
-            if ($max_age && $tokens[0] > $max_age) {
-                continue;
-            }
-
-            unlink($file);
-            $count++;
-        }
-
-        $this->info($count . ' files removed.');
+        return $this->handle();
     }
 }

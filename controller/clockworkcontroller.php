@@ -50,7 +50,7 @@ class ClockworkController extends Controller {
 	 * @return \OCP\AppFramework\Http\Response
 	 */
 	public function retrieve($name) {
-		$data = $this->storage->retrieve($name);
+		$data = $this->storage->find($name);
 		return new JSONResponse($data);
 	}
 }

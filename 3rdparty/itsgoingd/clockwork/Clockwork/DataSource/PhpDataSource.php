@@ -1,7 +1,7 @@
-<?php
-namespace Clockwork\DataSource;
+<?php namespace Clockwork\DataSource;
 
 use Clockwork\DataSource\DataSource;
+use Clockwork\Helpers\Serializer;
 use Clockwork\Request\Request;
 
 /**
@@ -10,7 +10,8 @@ use Clockwork\Request\Request;
 class PhpDataSource extends DataSource
 {
 	/**
-	 * Add request time, method, URI, headers, get and post data, session data, cookies, response status and time to the request
+	 * Add request time, method, URI, headers, get and post data, session data, cookies, response status and time to
+	 * the request
 	 */
 	public function resolve(Request $request)
 	{
@@ -33,9 +34,7 @@ class PhpDataSource extends DataSource
 	 */
 	protected function getCookies()
 	{
-		return $this->removePasswords(
-			$this->replaceUnserializable($_COOKIE)
-		);
+		return $this->removePasswords(Serializer::simplify($_COOKIE));
 	}
 
 	/**
@@ -43,9 +42,7 @@ class PhpDataSource extends DataSource
 	 */
 	protected function getGetData()
 	{
-		return $this->removePasswords(
-			$this->replaceUnserializable($_GET)
-		);
+		return $this->removePasswords(Serializer::simplify($_GET));
 	}
 
 	/**
@@ -53,9 +50,7 @@ class PhpDataSource extends DataSource
 	 */
 	protected function getPostData()
 	{
-		return $this->removePasswords(
-			$this->replaceUnserializable($_POST)
-		);
+		return $this->removePasswords(Serializer::simplify($_POST));
 	}
 
 	/**
@@ -63,19 +58,18 @@ class PhpDataSource extends DataSource
 	 */
 	protected function getRequestHeaders()
 	{
-		$headers = array();
+		$headers = [];
 
 		foreach ($_SERVER as $key => $value) {
-			if (substr($key, 0, 5) !== 'HTTP_')
-				continue;
+			if (substr($key, 0, 5) !== 'HTTP_') continue;
 
 			$header = substr($key, 5);
 			$header = str_replace('_', ' ', $header);
 			$header = ucwords(strtolower($header));
 			$header = str_replace(' ', '-', $header);
 
-			if (!isset($headers[$header])) {
-				$headers[$header] = array($value);
+			if (! isset($headers[$header])) {
+				$headers[$header] = [ $value ];
 			} else {
 				$headers[$header][] = $value;
 			}
@@ -103,7 +97,7 @@ class PhpDataSource extends DataSource
 	{
 		if (isset($_SERVER['REQUEST_TIME_FLOAT'])) {
 			return $_SERVER['REQUEST_TIME_FLOAT'];
-		} else if (isset($_SERVER['REQUEST_TIME'])) {
+		} elseif (isset($_SERVER['REQUEST_TIME'])) {
 			return $_SERVER['REQUEST_TIME'];
 		}
 	}
@@ -119,13 +113,10 @@ class PhpDataSource extends DataSource
 	}
 
 	/**
-	 * Return response status code (if available)
+	 * Return response status code
 	 */
 	protected function getResponseStatus()
 	{
-		if (!function_exists('http_response_code'))
-			return null;
-
 		return http_response_code();
 	}
 
@@ -142,11 +133,10 @@ class PhpDataSource extends DataSource
 	 */
 	protected function getSessionData()
 	{
-		if (!isset($_SESSION))
-			return array();
+		if (! isset($_SESSION)) {
+			return [];
+		}
 
-		return $this->removePasswords(
-			$this->replaceUnserializable($_SESSION)
-		);
+		return $this->removePasswords(Serializer::simplify($_SESSION));
 	}
 }

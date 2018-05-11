@@ -1,5 +1,4 @@
-<?php
-namespace Clockwork\Request;
+<?php namespace Clockwork\Request;
 
 /**
  * Data structure representing a single application request
@@ -34,7 +33,7 @@ class Request
 	/**
 	 * Request headers
 	 */
-	public $headers = array();
+	public $headers = [];
 
 	/**
 	 * Textual representation of executed controller
@@ -44,22 +43,22 @@ class Request
 	/**
 	 * GET data array
 	 */
-	public $getData = array();
+	public $getData = [];
 
 	/**
 	 * POST data array
 	 */
-	public $postData = array();
+	public $postData = [];
 
 	/**
 	 * Session data array
 	 */
-	public $sessionData = array();
+	public $sessionData = [];
 
 	/**
 	 * Cookies array
 	 */
-	public $cookies = array();
+	public $cookies = [];
 
 	/**
 	 * Response time
@@ -74,32 +73,67 @@ class Request
 	/**
 	 * Database queries array
 	 */
-	public $databaseQueries = array();
+	public $databaseQueries = [];
+
+	/**
+	 * Cache queries array
+	 */
+	public $cacheQueries = [];
+
+	/**
+	 * Cache reads count
+	 */
+	public $cacheReads;
+
+	/**
+	 * Cache hits count
+	 */
+	public $cacheHits;
+
+	/**
+	 * Cache writes count
+	 */
+	public $cacheWrites;
+
+	/**
+	 * Cache deletes count
+	 */
+	public $cacheDeletes;
+
+	/**
+	 * Cache time
+	 */
+	public $cacheTime;
 
 	/**
 	 * Timeline data array
 	 */
-	public $timelineData = array();
+	public $timelineData = [];
 
 	/**
 	 * Log messages array
 	 */
-	public $log = array();
+	public $log = [];
+
+	/**
+	 * Fired events array
+	 */
+	public $events = [];
 
 	/**
 	 * Application routes array
 	 */
-	public $routes = array();
+	public $routes = [];
 
 	/**
 	 * Emails data array
 	 */
-	public $emailsData = array();
+	public $emailsData = [];
 
 	/**
 	 * Views data array
 	 */
-	public $viewsData = array();
+	public $viewsData = [];
 
 	/**
 	 * Custom user data (not used by Clockwork app)
@@ -113,8 +147,9 @@ class Request
 	public function __construct(array $data = null)
 	{
 		if ($data) {
-			foreach ($data as $key => $val)
+			foreach ($data as $key => $val) {
 				$this->$key = $val;
+			}
 		} else {
 			$this->id = $this->generateRequestId();
 		}
@@ -125,13 +160,9 @@ class Request
 	 */
 	public function getDatabaseDuration()
 	{
-		$duration = 0;
-
-		foreach ($this->databaseQueries as $query)
-			if (isset($query['duration']))
-				$duration += $query['duration'];
-
-		return $duration;
+		return array_reduce($this->databaseQueries, function ($total, $query) {
+			return isset($query['duration']) ? $total + $query['duration'] : $total;
+		}, 0);
 	}
 
 	/**
@@ -147,8 +178,9 @@ class Request
 	 */
 	public function toArray()
 	{
-		return array(
+		return [
 			'id'               => $this->id,
+			'version'          => $this->version,
 			'time'             => $this->time,
 			'method'           => $this->method,
 			'uri'              => $this->uri,
@@ -163,13 +195,20 @@ class Request
 			'responseDuration' => $this->getResponseDuration(),
 			'databaseQueries'  => $this->databaseQueries,
 			'databaseDuration' => $this->getDatabaseDuration(),
+			'cacheQueries'     => $this->cacheQueries,
+			'cacheReads'       => $this->cacheReads,
+			'cacheHits'        => $this->cacheHits,
+			'cacheWrites'      => $this->cacheWrites,
+			'cacheDeletes'     => $this->cacheDeletes,
+			'cacheTime'        => $this->cacheTime,
 			'timelineData'     => $this->timelineData,
 			'log'              => array_values($this->log),
+			'events'           => $this->events,
 			'routes'           => $this->routes,
 			'emailsData'       => $this->emailsData,
 			'viewsData'        => $this->viewsData,
 			'userData'         => $this->userData
-		);
+		];
 	}
 
 	/**
@@ -177,7 +216,7 @@ class Request
 	 */
 	public function toJson()
 	{
-		return json_encode($this->toArray());
+		return json_encode($this->toArray(), defined('JSON_PARTIAL_OUTPUT_ON_ERROR') ? \JSON_PARTIAL_OUTPUT_ON_ERROR : 0);
 	}
 
 	/**
@@ -185,6 +224,6 @@ class Request
 	 */
 	protected function generateRequestId()
 	{
-		return sprintf('%.4F', microtime(true)) . '.' . mt_rand();
+		return str_replace('.', '-', sprintf('%.4F', microtime(true))) . '-' . mt_rand();
 	}
 }
